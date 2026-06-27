@@ -10,8 +10,10 @@ import { supabase } from '@/lib/supabase';
 import { CUISINES, DIET_TAGS, TAG_LABELS } from '@/lib/constants';
 import type { MenuItem, Venue, MenuCategory } from '@/lib/types';
 import toast from 'react-hot-toast';
+import { GripVertical } from 'lucide-react';
+import { useEventTypes } from '@/hooks/useEventTypes';
 
-type AdminTab = 'items' | 'categories' | 'venues';
+type AdminTab = 'items' | 'categories' | 'venues' | 'eventTypes';
 
 export function AdminPage() {
   const [tab, setTab] = useState<AdminTab>('items');
@@ -26,6 +28,7 @@ export function AdminPage() {
           ['items', 'Menu Items'],
           ['categories', 'Categories'],
           ['venues', 'Venues'],
+          ['eventTypes', 'Event Types'],
         ] as const).map(([key, label]) => (
           <button
             key={key}
@@ -44,6 +47,7 @@ export function AdminPage() {
       {tab === 'items' && <MenuItemsAdmin />}
       {tab === 'categories' && <CategoriesAdmin />}
       {tab === 'venues' && <VenuesAdmin />}
+      {tab === 'eventTypes' && <EventTypesAdmin />}
     </div>
   );
 }
@@ -274,9 +278,17 @@ function MenuItemsAdmin() {
 // CATEGORIES ADMIN
 // ============================================
 function CategoriesAdmin() {
-  const { categories, refetch } = useMenu();
+  const { categories, refetch, updateCategory, reorderCategories } = useMenu();
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [orderedCats, setOrderedCats] = useState(categories);
+
+  useEffect(() => {
+    setOrderedCats(categories);
+  }, [categories]);
 
   async function handleAdd() {
     if (!name.trim()) return;
@@ -296,6 +308,53 @@ function CategoriesAdmin() {
     refetch();
   }
 
+  function startEdit(cat: MenuCategory) {
+    setEditingId(cat.id);
+    setEditName(cat.name);
+  }
+
+  async function saveEdit() {
+    if (!editingId || !editName.trim()) return;
+    try {
+      await updateCategory(editingId, { name: editName.trim() });
+      toast.success('Category renamed');
+    } catch {
+      toast.error('Failed to rename');
+    }
+    setEditingId(null);
+    setEditName('');
+  }
+
+  function handleDragStart(id: string) {
+    setDraggedId(id);
+  }
+
+  function handleDragOver(e: React.DragEvent, targetId: string) {
+    e.preventDefault();
+    if (!draggedId || draggedId === targetId) return;
+    setOrderedCats((prev) => {
+      const fromIdx = prev.findIndex((c) => c.id === draggedId);
+      const toIdx = prev.findIndex((c) => c.id === targetId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  }
+
+  async function handleDragEnd() {
+    if (!draggedId) return;
+    setDraggedId(null);
+    const ids = orderedCats.map((c) => c.id);
+    try {
+      await reorderCategories(ids);
+      toast.success('Order updated');
+    } catch {
+      toast.error('Failed to reorder');
+    }
+  }
+
   return (
     <div>
       <div className="flex gap-2 mb-6">
@@ -311,22 +370,57 @@ function CategoriesAdmin() {
         </Button>
       </div>
 
+      <p className="text-xs text-muted mb-3">Drag to reorder. Changes save automatically.</p>
+
       <div className="space-y-2">
-        {categories.map((cat) => (
+        {orderedCats.map((cat) => (
           <div
             key={cat.id}
-            className="bg-white rounded-lg border border-charcoal/10 px-4 py-3 flex items-center justify-between"
+            draggable
+            onDragStart={() => handleDragStart(cat.id)}
+            onDragOver={(e) => handleDragOver(e, cat.id)}
+            onDragEnd={handleDragEnd}
+            className={`bg-white rounded-lg border border-charcoal/10 px-4 py-3 flex items-center justify-between transition-opacity ${
+              draggedId === cat.id ? 'opacity-40' : ''
+            }`}
           >
-            <div>
-              <p className="text-sm font-medium text-charcoal">{cat.name}</p>
-              <p className="text-xs text-muted">Order: {cat.display_order}</p>
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <GripVertical className="w-4 h-4 text-muted cursor-grab shrink-0" />
+              {editingId === cat.id ? (
+                <div className="flex items-center gap-2 flex-1">
+                  <Input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="max-w-xs"
+                    onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                    autoFocus
+                  />
+                  <Button size="sm" onClick={saveEdit}>Save</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm font-medium text-charcoal">{cat.name}</p>
+                  <p className="text-xs text-muted">Order: {cat.display_order}</p>
+                </div>
+              )}
             </div>
-            <button
-              onClick={() => handleDelete(cat)}
-              className="p-1.5 rounded-lg text-muted hover:text-red-600 hover:bg-red-50"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {editingId !== cat.id && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => startEdit(cat)}
+                  className="p-1.5 rounded-lg text-muted hover:text-charcoal hover:bg-charcoal/5"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleDelete(cat)}
+                  className="p-1.5 rounded-lg text-muted hover:text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -423,6 +517,110 @@ function VenuesAdmin() {
             >
               <Trash2 className="w-4 h-4" />
             </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// EVENT TYPES ADMIN
+// ============================================
+function EventTypesAdmin() {
+  const { eventTypes, refetch } = useEventTypes();
+  const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+
+  async function handleAdd() {
+    if (!name.trim()) return;
+    setSaving(true);
+    const maxOrder = eventTypes.reduce((max, e) => Math.max(max, e.display_order), 0);
+    await supabase.from('event_types').insert({ name: name.trim(), display_order: maxOrder + 1 });
+    setName('');
+    setSaving(false);
+    toast.success('Event type added');
+    refetch();
+  }
+
+  async function handleDelete(et: { id: string; name: string }) {
+    if (!confirm(`Delete "${et.name}"?`)) return;
+    await supabase.from('event_types').update({ is_active: false }).eq('id', et.id);
+    toast.success('Event type removed');
+    refetch();
+  }
+
+  function startEdit(et: { id: string; name: string }) {
+    setEditingId(et.id);
+    setEditName(et.name);
+  }
+
+  async function saveEdit() {
+    if (!editingId || !editName.trim()) return;
+    await supabase.from('event_types').update({ name: editName.trim() }).eq('id', editingId);
+    toast.success('Event type renamed');
+    setEditingId(null);
+    setEditName('');
+    refetch();
+  }
+
+  return (
+    <div>
+      <div className="flex gap-2 mb-6">
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="New event type"
+          className="max-w-xs"
+        />
+        <Button onClick={handleAdd} loading={saving} disabled={!name.trim()}>
+          <Plus className="w-4 h-4" />
+          Add
+        </Button>
+      </div>
+
+      <div className="space-y-2">
+        {eventTypes.map((et) => (
+          <div
+            key={et.id}
+            className="bg-white rounded-lg border border-charcoal/10 px-4 py-3 flex items-center justify-between"
+          >
+            {editingId === et.id ? (
+              <div className="flex items-center gap-2 flex-1">
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="max-w-xs"
+                  onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                  autoFocus
+                />
+                <Button size="sm" onClick={saveEdit}>Save</Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <p className="text-sm font-medium text-charcoal">{et.name}</p>
+                  <p className="text-xs text-muted">Order: {et.display_order}</p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => startEdit(et)}
+                    className="p-1.5 rounded-lg text-muted hover:text-charcoal hover:bg-charcoal/5"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(et)}
+                    className="p-1.5 rounded-lg text-muted hover:text-red-600 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         ))}
       </div>

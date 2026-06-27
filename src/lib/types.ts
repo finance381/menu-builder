@@ -147,3 +147,11 @@ export interface Database {
     };
   };
 }
+
+export interface EventType {
+  id: string;
+  name: string;
+  display_order: number;
+  is_active: boolean;
+  created_at: string;
+}

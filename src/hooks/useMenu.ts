@@ -39,6 +39,23 @@ export function useMenu() {
     return items.find((item) => item.id === id);
   }
 
+  async function updateCategory(id: string, updates: { name?: string; display_order?: number }) {
+    const { error } = await supabase
+      .from('menu_categories')
+      .update(updates)
+      .eq('id', id);
+    if (error) throw error;
+    refetch();
+  }
+
+  async function reorderCategories(orderedIds: string[]) {
+    const updates = orderedIds.map((id, index) => 
+      supabase.from('menu_categories').update({ display_order: index + 1 }).eq('id', id)
+    );
+    await Promise.all(updates);
+    refetch();
+  }
+
   return {
     categories,
     items,
@@ -46,5 +63,7 @@ export function useMenu() {
     getItemsByCategory,
     getItemById,
     refetch: fetchMenu,
+    updateCategory,
+    reorderCategories,
   };
 }

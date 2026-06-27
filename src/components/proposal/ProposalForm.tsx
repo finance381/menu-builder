@@ -5,6 +5,7 @@ import { Select } from '@/components/ui/Select';
 import { useVenues } from '@/hooks/useVenues';
 import { EVENT_TYPES } from '@/lib/constants';
 import type { ProposalFormData } from '@/lib/types';
+import { useEventTypes } from '@/hooks/useEventTypes';
 
 interface ProposalFormProps {
   initialData?: Partial<ProposalFormData>;
@@ -14,6 +15,7 @@ interface ProposalFormProps {
 
 export function ProposalForm({ initialData, onSubmit, loading }: ProposalFormProps) {
   const { venues } = useVenues();
+  const { eventTypes } = useEventTypes();
   const [form, setForm] = useState<ProposalFormData>({
     guest_name: initialData?.guest_name || '',
     guest_phone: initialData?.guest_phone || '',
@@ -86,7 +88,7 @@ export function ProposalForm({ initialData, onSubmit, loading }: ProposalFormPro
             value={form.event_type}
             onChange={(e) => update('event_type', e.target.value)}
             placeholder="Select event type"
-            options={EVENT_TYPES.map((t) => ({ value: t, label: t }))}
+            options={eventTypes.map((t) => ({ value: t.name, label: t.name }))}
           />
           <Input
             label="Event Date"
