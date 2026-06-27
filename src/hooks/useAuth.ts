@@ -54,6 +54,11 @@ export function useAuth() {
     return { error };
   }
 
+  async function signUp(email: string, password: string) {
+    const { error } = await supabase.auth.signUp({ email, password });
+    return { error };
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
     setUser(null);
@@ -62,5 +67,5 @@ export function useAuth() {
 
   const isAdmin = profile?.role === 'admin';
 
-  return { user, profile, loading, isAdmin, signIn, signOut };
+  return { user, profile, loading, isAdmin, signIn, signUp, signOut };
 }

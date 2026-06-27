@@ -1,61 +1,112 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 /* ============================================
-   Diet markers (veg/non-veg square indicators)
+   Custom theme (replaces tailwind.config.js)
    ============================================ */
-.diet-marker {
-  @apply inline-flex items-center justify-center border-2 rounded-sm;
+@theme {
+  --color-cream: #faf9f6;
+  --color-ivory: #f5f0eb;
+  --color-charcoal: #1a1a2e;
+  --color-slate: #3d3d5c;
+  --color-muted: #8e8ea0;
+  --color-accent: #8b2635;
+  --color-accent-light: #a83242;
+  --color-gold: #c9a84c;
+  --color-gold-light: #e0c872;
+  --color-veg-green: #2d8a4e;
+  --color-nonveg-red: #c0392b;
+
+  --font-sans: "DM Sans", system-ui, sans-serif;
+  --font-display: "Playfair Display", Georgia, serif;
+
+  --breakpoint-tablet: 768px;
+  --breakpoint-desktop: 1200px;
 }
 
-.diet-marker-veg {
-  @apply border-veg-green;
+/* ============================================
+   Base styles
+   ============================================ */
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply min-h-screen;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted/30 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted/50;
+  }
 }
 
-.diet-marker-nonveg {
-  @apply border-nonveg-red;
-}
+/* ============================================
+   Component styles
+   ============================================ */
+@layer components {
+  .diet-marker {
+    @apply inline-flex items-center justify-center w-4 h-4 border-2 rounded-sm;
+  }
 
-.diet-marker-dot {
-  @apply rounded-full;
+  .diet-marker--veg {
+    @apply border-veg-green;
+  }
+
+  .diet-marker--veg::after {
+    content: '';
+    @apply block w-2 h-2 rounded-full bg-veg-green;
+  }
+
+  .diet-marker--nonveg {
+    @apply border-nonveg-red;
+  }
+
+  .diet-marker--nonveg::after {
+    content: '';
+    @apply block w-2 h-2 rounded-full bg-nonveg-red;
+  }
 }
 
 /* ============================================
    Print styles
    ============================================ */
 @media print {
-  body {
-    background: white !important;
-    margin: 0;
-    padding: 0;
+  body * {
+    visibility: hidden;
   }
 
-  /* Hide everything except the print area */
-  body > *:not(#print-area) {
-    display: none !important;
+  #print-area,
+  #print-area * {
+    visibility: visible;
   }
 
   #print-area {
-    display: block !important;
-    position: static !important;
+    position: absolute;
+    inset: 0;
+    width: 100%;
   }
 
-  /* Remove shadows, borders in print */
+  @page {
+    size: A4;
+    margin: 15mm 20mm;
+  }
+
   * {
-    box-shadow: none !important;
-  }
-
-  /* Ensure page breaks work */
-  .page-break-before {
-    page-break-before: always;
-  }
-
-  .page-break-after {
-    page-break-after: always;
-  }
-
-  .no-page-break {
-    page-break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

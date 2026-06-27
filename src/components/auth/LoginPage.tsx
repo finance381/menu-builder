@@ -10,21 +10,33 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const [isSignUp, setIsSignUp] = useState(false);
+  const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await signIn(email, password);
-
-    if (error) {
-      toast.error(error.message);
-      setLoading(false);
+    if (isSignUp) {
+      const { error } = await signUp(email, password);
+      if (error) {
+        toast.error(error.message);
+        setLoading(false);
+      } else {
+        toast.success('Account created! You can now sign in.');
+        setIsSignUp(false);
+        setLoading(false);
+      }
     } else {
-      toast.success('Welcome back!');
-      navigate('/');
+      const { error } = await signIn(email, password);
+      if (error) {
+        toast.error(error.message);
+        setLoading(false);
+      } else {
+        toast.success('Welcome back!');
+        navigate('/');
+      }
     }
   };
 
@@ -66,9 +78,18 @@ export function LoginPage() {
               autoComplete="current-password"
             />
             <Button type="submit" loading={loading} className="w-full">
-              Sign in
+              {isSignUp ? 'Sign up' : 'Sign in'}
             </Button>
           </form>
+          <div className="mt-4 text-center">
+            <button
+              type="button"
+              onClick={() => setIsSignUp(!isSignUp)}
+              className="text-sm text-accent hover:text-accent-light transition-colors"
+            >
+              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
