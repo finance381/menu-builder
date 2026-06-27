@@ -11,7 +11,7 @@ import { AdminPage } from '@/pages/AdminPage';
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/menu-builder">
       <Toaster
         position="top-right"
         toastOptions={{

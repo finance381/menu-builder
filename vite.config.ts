@@ -17,7 +17,7 @@ export default defineConfig({
         background_color: '#faf9f6',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: './',
+        start_url: '/menu-builder/',
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -55,5 +55,5 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  base: './',
+  base: '/menu-builder/',
 });
