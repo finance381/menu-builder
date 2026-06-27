@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   Diet markers (veg/non-veg square indicators)
+   ============================================ */
+.diet-marker {
+  @apply inline-flex items-center justify-center border-2 rounded-sm;
+}
+
+.diet-marker-veg {
+  @apply border-veg-green;
+}
+
+.diet-marker-nonveg {
+  @apply border-nonveg-red;
+}
+
+.diet-marker-dot {
+  @apply rounded-full;
+}
+
+/* ============================================
+   Print styles
+   ============================================ */
+@media print {
+  body {
+    background: white !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Hide everything except the print area */
+  body > *:not(#print-area) {
+    display: none !important;
+  }
+
+  #print-area {
+    display: block !important;
+    position: static !important;
+  }
+
+  /* Remove shadows, borders in print */
+  * {
+    box-shadow: none !important;
+  }
+
+  /* Ensure page breaks work */
+  .page-break-before {
+    page-break-before: always;
+  }
+
+  .page-break-after {
+    page-break-after: always;
+  }
+
+  .no-page-break {
+    page-break-inside: avoid;
+  }
+}
