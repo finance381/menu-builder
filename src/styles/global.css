@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply min-h-screen;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted/30 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted/50;
+  }
+}
+
+@layer components {
+  /* Veg / Non-veg marker (the square with dot) */
+  .diet-marker {
+    @apply inline-flex items-center justify-center w-4 h-4 border-2 rounded-sm;
+  }
+
+  .diet-marker--veg {
+    @apply border-veg-green;
+  }
+
+  .diet-marker--veg::after {
+    content: '';
+    @apply block w-2 h-2 rounded-full bg-veg-green;
+  }
+
+  .diet-marker--nonveg {
+    @apply border-nonveg-red;
+  }
+
+  .diet-marker--nonveg::after {
+    content: '';
+    @apply block w-2 h-2 rounded-full bg-nonveg-red;
+  }
+}
+
+/* ============================================
+   PRINT STYLES — the branded menu card
+   ============================================ */
+@media print {
+  /* Hide everything except the printable area */
+  body * {
+    visibility: hidden;
+  }
+
+  #print-area,
+  #print-area * {
+    visibility: visible;
+  }
+
+  #print-area {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
+
+  @page {
+    size: A4;
+    margin: 15mm 20mm;
+  }
+
+  /* No backgrounds or shadows in print */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
