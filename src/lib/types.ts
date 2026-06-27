@@ -124,11 +124,23 @@ export interface Database {
   public: {
     Tables: {
       profiles: { Row: Profile; Insert: Partial<Profile> & { id: string; full_name: string }; Update: Partial<Profile> };
-      venues: { Row: Venue; Insert: Partial<Venue> & { name: string }; Update: Partial<Venue> };
-      menu_categories: { Row: MenuCategory; Insert: Partial<MenuCategory> & { name: string }; Update: Partial<MenuCategory> };
-      menu_items: { Row: MenuItem; Insert: Partial<MenuItem> & { name: string; category_id: string }; Update: Partial<MenuItem> };
-      proposals: { Row: Proposal; Insert: Partial<Proposal> & { created_by: string; guest_name: string }; Update: Partial<Proposal> };
-      proposal_items: { Row: ProposalItem; Insert: Partial<ProposalItem> & { proposal_id: string; item_name_snapshot: string; category_name_snapshot: string }; Update: Partial<ProposalItem> };
+      venues: {
+        Row: Venue;
+        Insert: Partial<Omit<Venue, 'id' | 'created_at' | 'updated_at' | 'is_active'>> & { name: string };
+        Update: Partial<Omit<Venue, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      menu_categories: {
+        Row: MenuCategory;
+        Insert: Partial<Omit<MenuCategory, 'id' | 'created_at'>> & { name: string };
+        Update: Partial<Omit<MenuCategory, 'id' | 'created_at'>>;
+      };
+      menu_items: {
+        Row: MenuItem;
+        Insert: Partial<Omit<MenuItem, 'id' | 'created_at' | 'updated_at' | 'is_active'>> & { name: string; category_id: string };
+        Update: Partial<Omit<MenuItem, 'id' | 'created_at' | 'updated_at'>>;
+      };
+      proposals: { Row: Proposal; Insert: Omit<Proposal, 'id' | 'created_at' | 'updated_at' | 'status'> & Partial<Pick<Proposal, 'id' | 'status'>>; Update: Partial<Proposal> };
+      proposal_items: { Row: ProposalItem; Insert: Omit<ProposalItem, 'id' | 'created_at'> & Partial<Pick<ProposalItem, 'id'>>; Update: Partial<ProposalItem> };
     };
     Functions: {
       is_admin: { Args: Record<string, never>; Returns: boolean };
