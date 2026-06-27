@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@source "../../index.html";
+@source "../**/*.{ts,tsx}";
 
 /* ============================================
    Custom theme (replaces tailwind.config.js)
