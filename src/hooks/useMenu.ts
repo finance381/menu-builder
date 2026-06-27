@@ -45,7 +45,7 @@ export function useMenu() {
       .update(updates)
       .eq('id', id);
     if (error) throw error;
-    refetch();
+    fetchMenu();
   }
 
   async function reorderCategories(orderedIds: string[]) {
@@ -53,7 +53,7 @@ export function useMenu() {
       supabase.from('menu_categories').update({ display_order: index + 1 }).eq('id', id)
     );
     await Promise.all(updates);
-    refetch();
+    fetchMenu();
   }
 
   return {
