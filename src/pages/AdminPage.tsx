@@ -587,6 +587,7 @@ function CategoriesAdmin() {
   const [savingSub, setSavingSub] = useState(false);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
   const [editSubName, setEditSubName] = useState('');
+  const [draggedSubId, setDraggedSubId] = useState<string | null>(null);
 
   useEffect(() => {
     setOrderedCats(categories);
@@ -690,6 +691,24 @@ function CategoriesAdmin() {
     refetch();
   }
 
+  async function handleReorderSubs(categoryId: string, fromId: string, toId: string) {
+    const catSubs = subcategories
+      .filter((s) => s.category_id === categoryId)
+      .sort((a, b) => a.display_order - b.display_order);
+    const fromIdx = catSubs.findIndex((s) => s.id === fromId);
+    const toIdx = catSubs.findIndex((s) => s.id === toId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const reordered = [...catSubs];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+    const updates = reordered.map((s, i) =>
+      supabase.from('menu_subcategories').update({ display_order: i + 1 }).eq('id', s.id)
+    );
+    await Promise.all(updates);
+    toast.success('Order updated');
+    refetch();
+  }
+
   return (
     <div>
       <div className="flex gap-2 mb-6">
@@ -789,11 +808,29 @@ function CategoriesAdmin() {
                     <p className="text-xs text-muted py-2">No subcategories. Add one above, or leave empty if this category doesn't need them.</p>
                   )}
 
+                  {catSubs.length > 1 && (
+                    <p className="text-xs text-muted mb-2">Drag to reorder subcategories.</p>
+                  )}
+
                   <div className="space-y-1">
                     {catSubs.map((sub) => (
                       <div
                         key={sub.id}
-                        className="bg-white/60 rounded-lg border border-charcoal/5 px-3 py-2 flex items-center justify-between"
+                        draggable
+                        onDragStart={() => setDraggedSubId(sub.id)}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          if (!draggedSubId || draggedSubId === sub.id) return;
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          if (!draggedSubId || draggedSubId === sub.id) return;
+                          handleReorderSubs(cat.id, draggedSubId, sub.id);
+                        }}
+                        onDragEnd={() => setDraggedSubId(null)}
+                        className={`bg-white/60 rounded-lg border border-charcoal/5 px-3 py-2 flex items-center justify-between transition-opacity ${
+                          draggedSubId === sub.id ? 'opacity-40' : ''
+                        }`}
                       >
                         {editingSubId === sub.id ? (
                           <div className="flex items-center gap-2 flex-1">
@@ -809,7 +846,11 @@ function CategoriesAdmin() {
                           </div>
                         ) : (
                           <>
-                            <p className="text-sm text-charcoal">{sub.name}</p>
+                            <div className="flex items-center gap-2">
+                              <GripVertical className="w-3.5 h-3.5 text-muted cursor-grab shrink-0" />
+                              <p className="text-sm text-charcoal">{sub.name}</p>
+                              <span className="text-xs text-muted">#{sub.display_order}</span>
+                            </div>
                             <div className="flex items-center gap-1">
                               <button
                                 onClick={() => { setEditingSubId(sub.id); setEditSubName(sub.name); }}
