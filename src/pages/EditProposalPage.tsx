@@ -15,7 +15,7 @@ export function EditProposalPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const { fetchProposal, saveProposalItems } = useProposals();
-  const { categories, items: allMenuItems } = useMenu();
+  const { categories, subcategories, items: allMenuItems } = useMenu();
   const { clearAll, toggleItem, getSelectedArray, totalCount } = useProposalBuilderStore();
   const navigate = useNavigate();
 
@@ -58,7 +58,7 @@ export function EditProposalPage() {
 
     setSaving(true);
     try {
-      await saveProposalItems(proposal.id, getSelectedArray(), categories);
+      await saveProposalItems(proposal.id, getSelectedArray(), categories, subcategories);
       toast.success('Menu updated!');
       navigate(`/proposals/${proposal.id}`);
     } catch {
