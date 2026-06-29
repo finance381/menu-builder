@@ -58,6 +58,7 @@ export interface Proposal {
   event_type: string | null;
   event_date: string | null;
   expected_pax: number | null;
+  template_id: string | null;
   status: ProposalStatus;
   notes: string | null;
   created_at: string;
@@ -141,6 +142,16 @@ export interface Database {
       };
       proposals: { Row: Proposal; Insert: Omit<Proposal, 'id' | 'created_at' | 'updated_at' | 'status'> & Partial<Pick<Proposal, 'id' | 'status'>>; Update: Partial<Proposal> };
       proposal_items: { Row: ProposalItem; Insert: Omit<ProposalItem, 'id' | 'created_at'> & Partial<Pick<ProposalItem, 'id'>>; Update: Partial<ProposalItem> };
+      menu_templates: {
+        Row: MenuTemplate;
+        Insert: Partial<Omit<MenuTemplate, 'id' | 'created_at' | 'is_active'>> & { name: string };
+        Update: Partial<Omit<MenuTemplate, 'id' | 'created_at'>>;
+      };
+      menu_template_items: {
+        Row: MenuTemplateItem;
+        Insert: Omit<MenuTemplateItem, 'id' | 'created_at'>;
+        Update: Partial<MenuTemplateItem>;
+      };
     };
     Functions: {
       is_admin: { Args: Record<string, never>; Returns: boolean };
@@ -154,4 +165,33 @@ export interface EventType {
   display_order: number;
   is_active: boolean;
   created_at: string;
+}
+
+// ============================================
+// Menu Templates (base menus)
+// ============================================
+
+export interface MenuTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  min_pax: number;
+  display_order: number;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface MenuTemplateItem {
+  id: string;
+  template_id: string;
+  menu_item_id: string;
+  created_at: string;
+}
+
+export interface MenuTemplateWithItems extends MenuTemplate {
+  items: MenuTemplateItem[];
+}
+
+export interface MenuTemplateFull extends MenuTemplate {
+  items: (MenuTemplateItem & { menu_item: MenuItem })[];
 }
