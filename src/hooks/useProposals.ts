@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { Proposal, ProposalItem, ProposalWithVenue, ProposalFull, MenuItem, MenuCategory } from '@/lib/types';
+import type { Proposal, ProposalItem, ProposalWithVenue, ProposalFull, MenuItem, MenuCategory, MenuSubcategory } from '@/lib/types';
 
 export function useProposals() {
   const [loading, setLoading] = useState(false);
@@ -66,7 +66,8 @@ export function useProposals() {
   async function saveProposalItems(
     proposalId: string,
     selectedItems: MenuItem[],
-    categories: MenuCategory[]
+    categories: MenuCategory[],
+    subcategories: MenuSubcategory[]
   ) {
     // Clear existing items
     await supabase
@@ -77,11 +78,13 @@ export function useProposals() {
     // Build snapshot rows
     const rows: Omit<ProposalItem, 'id' | 'created_at'>[] = selectedItems.map((item) => {
       const cat = categories.find((c) => c.id === item.category_id);
+      const sub = subcategories.find((s) => s.id === item.subcategory_id);
       return {
         proposal_id: proposalId,
         menu_item_id: item.id,
         item_name_snapshot: item.name,
         category_name_snapshot: cat?.name ?? 'Other',
+        subcategory_name_snapshot: sub?.name ?? null,
         category_display_order: cat?.display_order ?? 99,
         tags_snapshot: item.tags,
       };

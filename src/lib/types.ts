@@ -35,9 +35,18 @@ export interface MenuCategory {
   created_at: string;
 }
 
+export interface MenuSubcategory {
+  id: string;
+  category_id: string;
+  name: string;
+  display_order: number;
+  created_at: string;
+}
+
 export interface MenuItem {
   id: string;
   category_id: string;
+  subcategory_id: string | null;
   name: string;
   description: string | null;
   image_url: string | null;
@@ -71,6 +80,7 @@ export interface ProposalItem {
   menu_item_id: string | null;
   item_name_snapshot: string;
   category_name_snapshot: string;
+  subcategory_name_snapshot: string | null;
   category_display_order: number;
   tags_snapshot: string[];
   created_at: string;

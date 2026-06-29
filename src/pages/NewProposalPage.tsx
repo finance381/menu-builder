@@ -18,7 +18,7 @@ export function NewProposalPage() {
   const [formData, setFormData] = useState<ProposalFormData | null>(null);
   const [saving, setSaving] = useState(false);
   const { user } = useAuth();
-  const { categories } = useMenu();
+  const { categories, subcategories } = useMenu();
   const { createProposal, saveProposalItems } = useProposals();
   const { getSelectedArray, totalCount, clearAll } = useProposalBuilderStore();
   const navigate = useNavigate();
@@ -50,7 +50,7 @@ export function NewProposalPage() {
         template_id: null,
       });
 
-      await saveProposalItems(proposal.id, getSelectedArray(), categories);
+      await saveProposalItems(proposal.id, getSelectedArray(), categories, subcategories);
       clearAll();
       toast.success('Menu saved!');
       navigate(`/proposals/${proposal.id}`);

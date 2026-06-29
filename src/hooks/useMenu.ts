@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { MenuCategory, MenuItem } from '@/lib/types';
+import type { MenuCategory, MenuSubcategory, MenuItem } from '@/lib/types';
 
 export function useMenu() {
   const [categories, setCategories] = useState<MenuCategory[]>([]);
+  const [subcategories, setSubcategories] = useState<MenuSubcategory[]>([]);
   const [items, setItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -14,9 +15,13 @@ export function useMenu() {
   async function fetchMenu() {
     setLoading(true);
 
-    const [catResult, itemResult] = await Promise.all([
+    const [catResult, subResult, itemResult] = await Promise.all([
       supabase
         .from('menu_categories')
+        .select('*')
+        .order('display_order'),
+      supabase
+        .from('menu_subcategories')
         .select('*')
         .order('display_order'),
       supabase
@@ -27,6 +32,7 @@ export function useMenu() {
     ]);
 
     if (catResult.data) setCategories(catResult.data);
+    if (subResult.data) setSubcategories(subResult.data);
     if (itemResult.data) setItems(itemResult.data);
     setLoading(false);
   }
@@ -56,12 +62,18 @@ export function useMenu() {
     fetchMenu();
   }
 
+  function getSubcategoriesByCategory(categoryId: string) {
+    return subcategories.filter((s) => s.category_id === categoryId);
+  }
+
   return {
     categories,
+    subcategories,
     items,
     loading,
     getItemsByCategory,
     getItemById,
+    getSubcategoriesByCategory,
     refetch: fetchMenu,
     updateCategory,
     reorderCategories,

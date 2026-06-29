@@ -336,13 +336,14 @@ function BaseMenusAdmin() {
 // MENU ITEMS ADMIN
 // ============================================
 function MenuItemsAdmin() {
-  const { categories, items, refetch } = useMenu();
+  const { categories, subcategories, items, refetch } = useMenu();
   const [editing, setEditing] = useState<MenuItem | null>(null);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({
     name: '',
     description: '',
     category_id: '',
+    subcategory_id: '',
     tags: [] as string[],
     cuisine: '',
     image_url: '',
@@ -351,7 +352,7 @@ function MenuItemsAdmin() {
   const [filterCategory, setFilterCategory] = useState('');
 
   function resetForm() {
-    setForm({ name: '', description: '', category_id: '', tags: [], cuisine: '', image_url: '' });
+    setForm({ name: '', description: '', category_id: '', subcategory_id: '', tags: [], cuisine: '', image_url: '' });
     setEditing(null);
     setAdding(false);
   }
@@ -363,6 +364,7 @@ function MenuItemsAdmin() {
       name: item.name,
       description: item.description || '',
       category_id: item.category_id,
+      subcategory_id: item.subcategory_id || '',
       tags: item.tags,
       cuisine: item.cuisine || '',
       image_url: item.image_url || '',
@@ -381,6 +383,7 @@ function MenuItemsAdmin() {
         name: form.name,
         description: form.description || null,
         category_id: form.category_id,
+        subcategory_id: form.subcategory_id || null,
         tags: form.tags,
         cuisine: form.cuisine || null,
         image_url: form.image_url || null,
@@ -443,6 +446,18 @@ function MenuItemsAdmin() {
               placeholder="Select category"
               options={categories.map((c) => ({ value: c.id, label: c.name }))}
               required
+            />
+            <Select
+              label="Subcategory"
+              value={form.subcategory_id}
+              onChange={(e) => setForm({ ...form, subcategory_id: e.target.value })}
+              placeholder="None (optional)"
+              options={[
+                { value: '', label: 'None' },
+                ...subcategories
+                  .filter((s) => s.category_id === form.category_id)
+                  .map((s) => ({ value: s.id, label: s.name })),
+              ]}
             />
             <Select
               label="Cuisine"
@@ -558,13 +573,20 @@ function MenuItemsAdmin() {
 // CATEGORIES ADMIN
 // ============================================
 function CategoriesAdmin() {
-  const { categories, refetch, updateCategory, reorderCategories } = useMenu();
+  const { categories, subcategories, refetch, updateCategory, reorderCategories } = useMenu();
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [orderedCats, setOrderedCats] = useState(categories);
+
+  // Subcategory state
+  const [expandedCatId, setExpandedCatId] = useState<string | null>(null);
+  const [subName, setSubName] = useState('');
+  const [savingSub, setSavingSub] = useState(false);
+  const [editingSubId, setEditingSubId] = useState<string | null>(null);
+  const [editSubName, setEditSubName] = useState('');
 
   useEffect(() => {
     setOrderedCats(categories);
@@ -582,7 +604,7 @@ function CategoriesAdmin() {
   }
 
   async function handleDelete(cat: MenuCategory) {
-    if (!confirm(`Delete "${cat.name}"? Items in this category will also be removed.`)) return;
+    if (!confirm(`Delete "${cat.name}"? Items and subcategories in this category will also be removed.`)) return;
     await supabase.from('menu_categories').delete().eq('id', cat.id);
     toast.success('Category deleted');
     refetch();
@@ -635,6 +657,39 @@ function CategoriesAdmin() {
     }
   }
 
+  // Subcategory handlers
+  async function handleAddSub(categoryId: string) {
+    if (!subName.trim()) return;
+    setSavingSub(true);
+    const catSubs = subcategories.filter((s) => s.category_id === categoryId);
+    const maxOrder = catSubs.reduce((max, s) => Math.max(max, s.display_order), 0);
+    await supabase.from('menu_subcategories').insert({
+      category_id: categoryId,
+      name: subName.trim(),
+      display_order: maxOrder + 1,
+    });
+    setSubName('');
+    setSavingSub(false);
+    toast.success('Subcategory added');
+    refetch();
+  }
+
+  async function handleDeleteSub(id: string, name: string) {
+    if (!confirm(`Delete "${name}"?`)) return;
+    await supabase.from('menu_subcategories').delete().eq('id', id);
+    toast.success('Subcategory deleted');
+    refetch();
+  }
+
+  async function saveSubEdit() {
+    if (!editingSubId || !editSubName.trim()) return;
+    await supabase.from('menu_subcategories').update({ name: editSubName.trim() }).eq('id', editingSubId);
+    toast.success('Subcategory renamed');
+    setEditingSubId(null);
+    setEditSubName('');
+    refetch();
+  }
+
   return (
     <div>
       <div className="flex gap-2 mb-6">
@@ -650,59 +705,135 @@ function CategoriesAdmin() {
         </Button>
       </div>
 
-      <p className="text-xs text-muted mb-3">Drag to reorder. Changes save automatically.</p>
+      <p className="text-xs text-muted mb-3">Drag to reorder. Click a category to manage subcategories.</p>
 
       <div className="space-y-2">
-        {orderedCats.map((cat) => (
-          <div
-            key={cat.id}
-            draggable
-            onDragStart={() => handleDragStart(cat.id)}
-            onDragOver={(e) => handleDragOver(e, cat.id)}
-            onDragEnd={handleDragEnd}
-            className={`bg-white rounded-lg border border-charcoal/10 px-4 py-3 flex items-center justify-between transition-opacity ${
-              draggedId === cat.id ? 'opacity-40' : ''
-            }`}
-          >
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <GripVertical className="w-4 h-4 text-muted cursor-grab shrink-0" />
-              {editingId === cat.id ? (
-                <div className="flex items-center gap-2 flex-1">
-                  <Input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="max-w-xs"
-                    onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
-                    autoFocus
-                  />
-                  <Button size="sm" onClick={saveEdit}>Save</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
+        {orderedCats.map((cat) => {
+          const catSubs = subcategories.filter((s) => s.category_id === cat.id);
+          const isExpanded = expandedCatId === cat.id;
+
+          return (
+            <div key={cat.id}>
+              <div
+                draggable
+                onDragStart={() => handleDragStart(cat.id)}
+                onDragOver={(e) => handleDragOver(e, cat.id)}
+                onDragEnd={handleDragEnd}
+                className={`bg-white rounded-lg border border-charcoal/10 px-4 py-3 flex items-center justify-between transition-opacity ${
+                  draggedId === cat.id ? 'opacity-40' : ''
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <GripVertical className="w-4 h-4 text-muted cursor-grab shrink-0" />
+                  {editingId === cat.id ? (
+                    <div className="flex items-center gap-2 flex-1">
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className="max-w-xs"
+                        onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                        autoFocus
+                      />
+                      <Button size="sm" onClick={saveEdit}>Save</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>Cancel</Button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setExpandedCatId(isExpanded ? null : cat.id)}
+                      className="text-left min-w-0"
+                    >
+                      <p className="text-sm font-medium text-charcoal">{cat.name}</p>
+                      <p className="text-xs text-muted">
+                        Order: {cat.display_order}
+                        {catSubs.length > 0 && ` · ${catSubs.length} subcategories`}
+                      </p>
+                    </button>
+                  )}
                 </div>
-              ) : (
-                <div>
-                  <p className="text-sm font-medium text-charcoal">{cat.name}</p>
-                  <p className="text-xs text-muted">Order: {cat.display_order}</p>
+                {editingId !== cat.id && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => startEdit(cat)}
+                      className="p-1.5 rounded-lg text-muted hover:text-charcoal hover:bg-charcoal/5"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(cat)}
+                      className="p-1.5 rounded-lg text-muted hover:text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Subcategories panel */}
+              {isExpanded && (
+                <div className="ml-8 mt-1 mb-3 pl-4 border-l-2 border-charcoal/10">
+                  <div className="flex gap-2 mb-3 mt-2">
+                    <Input
+                      value={subName}
+                      onChange={(e) => setSubName(e.target.value)}
+                      placeholder="New subcategory"
+                      className="max-w-xs"
+                    />
+                    <Button size="sm" onClick={() => handleAddSub(cat.id)} loading={savingSub} disabled={!subName.trim()}>
+                      <Plus className="w-4 h-4" />
+                      Add
+                    </Button>
+                  </div>
+
+                  {catSubs.length === 0 && (
+                    <p className="text-xs text-muted py-2">No subcategories. Add one above, or leave empty if this category doesn't need them.</p>
+                  )}
+
+                  <div className="space-y-1">
+                    {catSubs.map((sub) => (
+                      <div
+                        key={sub.id}
+                        className="bg-white/60 rounded-lg border border-charcoal/5 px-3 py-2 flex items-center justify-between"
+                      >
+                        {editingSubId === sub.id ? (
+                          <div className="flex items-center gap-2 flex-1">
+                            <Input
+                              value={editSubName}
+                              onChange={(e) => setEditSubName(e.target.value)}
+                              className="max-w-xs"
+                              onKeyDown={(e) => e.key === 'Enter' && saveSubEdit()}
+                              autoFocus
+                            />
+                            <Button size="sm" onClick={saveSubEdit}>Save</Button>
+                            <Button size="sm" variant="ghost" onClick={() => setEditingSubId(null)}>Cancel</Button>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-sm text-charcoal">{sub.name}</p>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => { setEditingSubId(sub.id); setEditSubName(sub.name); }}
+                                className="p-1 rounded text-muted hover:text-charcoal hover:bg-charcoal/5"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSub(sub.id, sub.name)}
+                                className="p-1 rounded text-muted hover:text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
-            {editingId !== cat.id && (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => startEdit(cat)}
-                  className="p-1.5 rounded-lg text-muted hover:text-charcoal hover:bg-charcoal/5"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => handleDelete(cat)}
-                  className="p-1.5 rounded-lg text-muted hover:text-red-600 hover:bg-red-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
