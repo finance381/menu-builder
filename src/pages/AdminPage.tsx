@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Upload, ChevronDown } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -8,12 +8,13 @@ import { useMenu } from '@/hooks/useMenu';
 import { useVenues } from '@/hooks/useVenues';
 import { supabase } from '@/lib/supabase';
 import { CUISINES, DIET_TAGS, TAG_LABELS } from '@/lib/constants';
-import type { MenuItem, Venue, MenuCategory } from '@/lib/types';
+import type { MenuItem, Venue, MenuCategory, MenuTemplate } from '@/lib/types';
 import toast from 'react-hot-toast';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, Check } from 'lucide-react';
 import { useEventTypes } from '@/hooks/useEventTypes';
+import { useTemplates } from '@/hooks/useTemplates';
 
-type AdminTab = 'items' | 'categories' | 'venues' | 'eventTypes';
+type AdminTab = 'items' | 'categories' | 'venues' | 'eventTypes' | 'baseMenus';
 
 export function AdminPage() {
   const [tab, setTab] = useState<AdminTab>('items');
@@ -29,6 +30,7 @@ export function AdminPage() {
           ['categories', 'Categories'],
           ['venues', 'Venues'],
           ['eventTypes', 'Event Types'],
+          ['baseMenus', 'Base Menus'],
         ] as const).map(([key, label]) => (
           <button
             key={key}
@@ -48,6 +50,284 @@ export function AdminPage() {
       {tab === 'categories' && <CategoriesAdmin />}
       {tab === 'venues' && <VenuesAdmin />}
       {tab === 'eventTypes' && <EventTypesAdmin />}
+      {tab === 'baseMenus' && <BaseMenusAdmin />}
+    </div>
+  );
+}
+
+// ============================================
+// BASE MENUS ADMIN
+// ============================================
+function BaseMenusAdmin() {
+  const { templates, createTemplate, updateTemplate, deleteTemplate, saveTemplateItems, fetchTemplateFull } = useTemplates();
+  const { categories, items } = useMenu();
+  const [adding, setAdding] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<MenuTemplate | null>(null);
+  const [form, setForm] = useState({ name: '', description: '', min_pax: '', display_order: '' });
+  const [saving, setSaving] = useState(false);
+
+  // Dish picker state
+  const [pickingForId, setPickingForId] = useState<string | null>(null);
+  const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+  const [pickerCategory, setPickerCategory] = useState('');
+  const [savingItems, setSavingItems] = useState(false);
+
+  function resetForm() {
+    setForm({ name: '', description: '', min_pax: '', display_order: '' });
+    setAdding(false);
+    setEditingTemplate(null);
+  }
+
+  function startEdit(t: MenuTemplate) {
+    setEditingTemplate(t);
+    setAdding(true);
+    setForm({
+      name: t.name,
+      description: t.description || '',
+      min_pax: String(t.min_pax),
+      display_order: String(t.display_order),
+    });
+  }
+
+  async function handleSave() {
+    if (!form.name.trim()) {
+      toast.error('Name is required');
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        name: form.name.trim(),
+        description: form.description || undefined,
+        min_pax: parseInt(form.min_pax) || 0,
+        display_order: parseInt(form.display_order) || 0,
+      };
+      if (editingTemplate) {
+        await updateTemplate(editingTemplate.id, payload);
+        toast.success('Template updated');
+      } else {
+        await createTemplate(payload);
+        toast.success('Template created');
+      }
+      resetForm();
+    } catch {
+      toast.error('Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(t: MenuTemplate) {
+    if (!confirm(`Delete "${t.name}"?`)) return;
+    await deleteTemplate(t.id);
+    toast.success('Template removed');
+    if (pickingForId === t.id) {
+      setPickingForId(null);
+      setSelectedItemIds(new Set());
+    }
+  }
+
+  async function openDishPicker(t: MenuTemplate) {
+    setPickingForId(t.id);
+    setPickerCategory('');
+    try {
+      const full = await fetchTemplateFull(t.id);
+      setSelectedItemIds(new Set(full.items.map((i) => i.menu_item_id)));
+    } catch {
+      toast.error('Failed to load template dishes');
+      setSelectedItemIds(new Set());
+    }
+  }
+
+  function toggleItem(id: string) {
+    setSelectedItemIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleSaveItems() {
+    if (!pickingForId) return;
+    setSavingItems(true);
+    try {
+      await saveTemplateItems(pickingForId, Array.from(selectedItemIds));
+      toast.success('Dishes saved');
+      setPickingForId(null);
+      setSelectedItemIds(new Set());
+    } catch {
+      toast.error('Failed to save dishes');
+    } finally {
+      setSavingItems(false);
+    }
+  }
+
+  return (
+    <div>
+      {/* Add / Edit form */}
+      {adding ? (
+        <div className="bg-white rounded-xl border border-charcoal/10 p-5 mb-6">
+          <h3 className="font-semibold text-charcoal mb-4">
+            {editingTemplate ? 'Edit Template' : 'New Base Menu'}
+          </h3>
+          <div className="grid grid-cols-1 tablet:grid-cols-2 gap-4 mb-4">
+            <Input
+              label="Template Name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="e.g. Silver, Gold, Platinum"
+              required
+            />
+            <Input
+              label="Min Pax"
+              type="number"
+              value={form.min_pax}
+              onChange={(e) => setForm({ ...form, min_pax: e.target.value })}
+              placeholder="0"
+            />
+            <Input
+              label="Description"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="Brief description"
+            />
+            <Input
+              label="Display Order"
+              type="number"
+              value={form.display_order}
+              onChange={(e) => setForm({ ...form, display_order: e.target.value })}
+              placeholder="1"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={handleSave} loading={saving}>
+              {editingTemplate ? 'Update' : 'Create Template'}
+            </Button>
+            <Button variant="ghost" onClick={resetForm}>Cancel</Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex justify-end mb-4">
+          <Button size="sm" onClick={() => setAdding(true)}>
+            <Plus className="w-4 h-4" />
+            New Base Menu
+          </Button>
+        </div>
+      )}
+
+      {/* Template list */}
+      <div className="space-y-2 mb-6">
+        {templates.map((t) => (
+          <div
+            key={t.id}
+            className="bg-white rounded-lg border border-charcoal/10 px-4 py-3 flex items-center justify-between"
+          >
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-charcoal">{t.name}</p>
+              <p className="text-xs text-muted">
+                Min {t.min_pax} pax{t.description ? ` · ${t.description}` : ''}
+              </p>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                variant={pickingForId === t.id ? 'primary' : 'ghost'}
+                onClick={() => pickingForId === t.id ? setPickingForId(null) : openDishPicker(t)}
+              >
+                {pickingForId === t.id ? 'Close' : 'Dishes'}
+              </Button>
+              <button
+                onClick={() => startEdit(t)}
+                className="p-1.5 rounded-lg text-muted hover:text-charcoal hover:bg-charcoal/5"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => handleDelete(t)}
+                className="p-1.5 rounded-lg text-muted hover:text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        ))}
+        {templates.length === 0 && (
+          <p className="text-sm text-muted text-center py-8">No base menus yet. Create one to get started.</p>
+        )}
+      </div>
+
+      {/* Dish picker (shown when a template is selected) */}
+      {pickingForId && (
+        <div className="bg-white rounded-xl border border-charcoal/10 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-charcoal">
+              Select dishes for "{templates.find((t) => t.id === pickingForId)?.name}"
+            </h3>
+            <p className="text-sm text-muted">{selectedItemIds.size} selected</p>
+          </div>
+
+          <div className="flex items-center gap-3 mb-4">
+            <Select
+              value={pickerCategory}
+              onChange={(e) => setPickerCategory(e.target.value)}
+              placeholder="All categories"
+              options={[
+                { value: '', label: 'All categories' },
+                ...categories.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+              className="w-56"
+            />
+            <Button onClick={handleSaveItems} loading={savingItems}>
+              Save Dishes
+            </Button>
+          </div>
+
+          <div className="space-y-1 max-h-96 overflow-y-auto">
+            {categories
+              .filter((c) => !pickerCategory || c.id === pickerCategory)
+              .map((cat) => {
+                const catItems = items.filter((i) => i.category_id === cat.id);
+                if (catItems.length === 0) return null;
+                return (
+                  <div key={cat.id} className="mb-3">
+                    <p className="text-xs font-medium text-muted uppercase tracking-wide mb-1 px-1">
+                      {cat.name}
+                    </p>
+                    {catItems.map((item) => {
+                      const selected = selectedItemIds.has(item.id);
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => toggleItem(item.id)}
+                          className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 transition-colors ${
+                            selected
+                              ? 'bg-accent/10 border border-accent/20'
+                              : 'hover:bg-charcoal/5 border border-transparent'
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+                            selected
+                              ? 'bg-accent border-accent'
+                              : 'border-charcoal/20'
+                          }`}>
+                            {selected && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                          <DietMarker tags={item.tags} size="sm" />
+                          <div className="min-w-0">
+                            <p className="text-sm text-charcoal truncate">{item.name}</p>
+                            {item.cuisine && <p className="text-xs text-muted">{item.cuisine}</p>}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
