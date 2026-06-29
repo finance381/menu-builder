@@ -47,6 +47,7 @@ export function NewProposalPage() {
         event_date: formData.event_date || null,
         expected_pax: formData.expected_pax ? parseInt(formData.expected_pax) : null,
         notes: formData.notes || null,
+        template_id: null,
       });
 
       await saveProposalItems(proposal.id, getSelectedArray(), categories);
